@@ -133,6 +133,7 @@ export default function WorkoutView() {
   };
 
   const addExerciseBlock = async () => {
+    hasUnsavedRef.current = true;
     const name = globalExercises[0] || 'Unknown';
     const { data } = await supabase.from('workout_exercises').insert([{ workout_id: workout.id, exercise_name: name }]).select();
     if(data) {
@@ -141,6 +142,7 @@ export default function WorkoutView() {
   };
 
   const updateExerciseName = async (exIndex, name) => {
+    hasUnsavedRef.current = true;
     const exList = [...exercises];
     exList[exIndex].exercise_name = name;
     setExercises(exList);
@@ -149,6 +151,7 @@ export default function WorkoutView() {
   };
 
   const addSet = async (exIndex) => {
+    hasUnsavedRef.current = true;
     const exList = [...exercises];
     const exerciseId = exList[exIndex].id;
     const { data } = await supabase.from('sets').insert([{ 
@@ -163,6 +166,7 @@ export default function WorkoutView() {
   };
 
   const duplicateSet = async (exIndex, setIndex) => {
+    hasUnsavedRef.current = true;
     const exList = [...exercises];
     const setObj = exList[exIndex].sets[setIndex];
     
@@ -180,6 +184,7 @@ export default function WorkoutView() {
   };
 
   const removeSet = async (exIndex, setIndex, setId) => {
+    hasUnsavedRef.current = true;
     const exList = [...exercises];
     exList[exIndex].sets.splice(setIndex, 1);
     setExercises(exList);
@@ -187,6 +192,7 @@ export default function WorkoutView() {
   };
 
   const updateSetField = async (exIndex, setIndex, field, value) => {
+    hasUnsavedRef.current = true;
     const exList = [...exercises];
     const setObj = exList[exIndex].sets[setIndex];
     setObj[field] = value;
@@ -333,17 +339,19 @@ export default function WorkoutView() {
       <div className="flex flex-col gap-6">
         {exercises.map((ex, exIndex) => (
           <div key={ex.id} className="glass-panel p-4" style={{borderColor: 'var(--neon-blue)'}}>
-            <SearchableDropdown 
+            <select 
               value={ex.exercise_name} 
-              onChange={newVal => updateExerciseName(exIndex, newVal)}
-              className="mb-4 font-bold text-lg text-neon bg-transparent border-none"
-              buttonStyle={{borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem', borderRadius: 0}}
-              placeholder="Select an exercise"
-              options={[
+              onChange={e => updateExerciseName(exIndex, e.target.value)}
+              className="mb-4 font-bold text-lg text-neon bg-transparent w-full"
+              style={{ border: 'none', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem', borderRadius: 0, outline: 'none' }}
+            >
+              {[
                 {value: ex.exercise_name, label: ex.exercise_name},
                 ...globalExercises.filter(g => g !== ex.exercise_name).map(g => ({value: g, label: g}))
-              ]}
-            />
+              ].map(opt => (
+                <option key={opt.value} value={opt.value} style={{background: '#0a0a0a', color: 'var(--neon-blue)'}}>{opt.label}</option>
+              ))}
+            </select>
 
             <div className="hidden sm:grid set-row text-xs text-secondary px-2 mb-1">
               <span>Weight</span>

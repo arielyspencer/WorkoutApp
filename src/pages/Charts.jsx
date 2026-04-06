@@ -116,8 +116,8 @@ export default function Charts({ profile }) {
         {
           label: `Top 1RM: ${targetExercise}`,
           data: max1RMs,
-          borderColor: '#39ff14', // neon green
-          backgroundColor: 'rgba(57, 255, 20, 0.2)',
+          borderColor: profile.theme_color || '#39ff14',
+          backgroundColor: 'transparent',
           borderWidth: 2,
           tension: 0.3,
           pointBackgroundColor: '#00f3ff', // neon blue

@@ -32,6 +32,7 @@ export default function Login({ setProfile }) {
 
   const executeLogin = (p) => {
     localStorage.setItem('workout_profile', JSON.stringify(p));
+    document.documentElement.style.setProperty('--theme-color', p.theme_color || '#39ff14');
     setProfile(p);
     navigate('/dashboard');
   };

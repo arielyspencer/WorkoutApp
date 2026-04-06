@@ -48,15 +48,16 @@ export default function SearchableDropdown({ options, value, onChange, placehold
 
       {isOpen && (
         <div 
-          className="absolute z-50 w-full mt-1 bg-gray-900 border rounded shadow-lg max-h-60 overflow-y-auto"
-          style={{ borderColor: 'var(--border-subtle)', background: '#0a0a0a' }}
+          className="absolute z-50 w-full mt-1 border rounded max-h-60 overflow-y-auto"
+          style={{ borderColor: 'var(--theme-color)', background: '#0a0a0a', boxShadow: '0 8px 16px rgba(0,0,0,0.9)' }}
         >
-          <div className="sticky top-0 bg-black p-2 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div className="sticky top-0 p-2 border-b" style={{ background: '#000', borderColor: 'var(--theme-color)', zIndex: 10 }}>
             <div className="relative">
-              <Search size={14} className="absolute left-2 top-2.5 text-secondary" />
+              <Search size={14} className="absolute left-3 top-3 text-secondary" />
               <input 
                 type="text" 
-                className="w-full bg-gray-900 p-1 pl-7 text-sm rounded border-none focus:outline-none" 
+                className="w-full p-2 pl-8 text-sm rounded focus:outline-none" 
+                style={{background: '#111', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
                 placeholder="Search..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
@@ -68,7 +69,10 @@ export default function SearchableDropdown({ options, value, onChange, placehold
             {filteredOptions.length > 0 ? filteredOptions.map(opt => (
               <li 
                 key={opt.value} 
-                className="p-2 cursor-pointer hover:bg-gray-800 text-sm"
+                className="p-3 cursor-pointer text-sm"
+                style={{borderBottom: '1px solid #1a1a1a', transition: 'background 0.2s'}}
+                onMouseEnter={e => e.currentTarget.style.background = '#1a1a1a'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => {
                   onChange(opt.value);
                   setIsOpen(false);
@@ -77,7 +81,7 @@ export default function SearchableDropdown({ options, value, onChange, placehold
                 {opt.label}
               </li>
             )) : (
-              <li className="p-2 text-sm text-secondary">No matching options</li>
+              <li className="p-3 text-sm text-secondary">No matching options</li>
             )}
           </ul>
         </div>

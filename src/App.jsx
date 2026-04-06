@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
-import { Home, LineChart, Users, ShieldAlert, LogOut } from 'lucide-react';
+import { Home, LineChart, Users, ShieldAlert, LogOut, User } from 'lucide-react';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import WorkoutView from './pages/WorkoutView';
@@ -8,6 +8,7 @@ import Admin from './pages/Admin';
 import Charts from './pages/Charts';
 import Clients from './pages/Clients';
 import ClientDashboard from './pages/ClientDashboard';
+import Profile from './pages/Profile';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -60,8 +61,10 @@ function App() {
         <header className="flex justify-between items-center mb-4 glass-panel desktop-nav">
           <h2 className="text-neon m-0">WorkoutTracker</h2>
           <div className="flex gap-4 items-center">
+            <span className="text-neon" style={{fontSize: '1.25rem', fontWeight: 'bold'}}>{profile.username}</span>
             <Link to="/dashboard" className="text-neon-blue">Log</Link>
             <Link to="/charts" className="text-neon-blue">Charts</Link>
+            <Link to="/profile" className="text-neon-blue inline-flex items-center gap-1"><User size={16}/> Profile</Link>
             {(profile.is_trainer || profile.username?.toLowerCase() === 'admin') && (
               <Link to="/clients" className="text-neon-blue flex items-center gap-1">
                 Clients
@@ -82,7 +85,6 @@ function App() {
             {(profile.is_admin || profile.username?.toLowerCase() === 'admin') && (
               <Link to="/admin" className="text-neon-blue">Admin</Link>
             )}
-            <button onClick={handleLogout} className="btn-secondary">Log Out ({profile.username})</button>
           </div>
         </header>
       )}
@@ -95,6 +97,7 @@ function App() {
         <Route path="/charts" element={<Charts profile={profile} />} />
         <Route path="/clients" element={<Clients profile={profile} />} />
         <Route path="/client/:id" element={<ClientDashboard trainerProfile={profile} />} />
+        <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} handleLogout={handleLogout} />} />
       </Routes>
 
       </div>
@@ -132,10 +135,10 @@ function App() {
               <span>Admin</span>
             </Link>
           )}
-          <button onClick={handleLogout} style={{background:'none', border:'none', padding:0}} className="flex flex-col items-center gap-1 text-secondary cursor-pointer">
-            <LogOut size={24} />
-            <span style={{fontSize: '0.75rem'}}>Logout</span>
-          </button>
+          <Link to="/profile" className={location.pathname === '/profile' ? 'active' : ''}>
+            <User size={24} />
+            <span>Profile</span>
+          </Link>
         </nav>
       )}
     </>

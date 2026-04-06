@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Plus, Trash2, Copy, ClipboardPaste, KeyRound, Edit3, UserCog, Palette, MoreVertical } from 'lucide-react';
+import { Calendar, Plus, Trash2, Copy, ClipboardPaste, Edit3, MoreVertical, X } from 'lucide-react';
 import { cloneWorkout, cloneWeek } from '../lib/clone';
 import SearchableDropdown from '../components/SearchableDropdown';
 
@@ -17,7 +17,6 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
   // Custom modals
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [menuOpenFor, setMenuOpenFor] = useState(null); // Track which workout has the 3-dots menu active
-  const [showColorSave, setShowColorSave] = useState(false);
   
   // Clipboard state holds: { type: 'week' | 'workout', id: string, name?: string }
   const [clipboard, setClipboard] = useState(null);
@@ -147,56 +146,6 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
     setLoading(false);
   };
 
-  const handleChangePin = async () => {
-    const newPin = prompt("Enter a new 4-digit PIN for your account:");
-    if(!newPin) return;
-    if(newPin.length < 4 || isNaN(newPin)) {
-      alert("PIN must be at least 4 numerical digits.");
-      return;
-    }
-    const { error } = await supabase.from('profiles').update({ pin: newPin }).eq('id', profile.id);
-    if(!error) {
-      alert("PIN successfully changed!");
-    } else {
-      alert("Error saving new PIN");
-    }
-  };
-
-  const handleThemeColorChange = async (e) => {
-    const newColor = e.target.value;
-    if(!profile) return;
-    const updatedProfile = { ...profile, theme_color: newColor };
-    if (setProfile) setProfile(updatedProfile);
-    document.documentElement.style.setProperty('--theme-color', newColor);
-    setShowColorSave(true);
-  };
-
-  const handleSaveTheme = async () => {
-    if(!profile) return;
-    const { error } = await supabase.from('profiles').update({ theme_color: profile.theme_color }).eq('id', profile.id);
-    if (!error) {
-      localStorage.setItem('workout_profile', JSON.stringify(profile));
-      setShowColorSave(false);
-      setTimeout(() => alert("Theme saved successfully!"), 100);
-    }
-  };
-
-  const handleToggleTrainer = async () => {
-    if(!profile) return;
-    const newStatus = !profile.is_trainer;
-    if (confirm(`Are you sure you want to ${newStatus ? 'enable' : 'disable'} Coach Mode?`)) {
-      const { error } = await supabase.from('profiles').update({ is_trainer: newStatus }).eq('id', profile.id);
-      if (!error) {
-        const updatedProfile = { ...profile, is_trainer: newStatus };
-        localStorage.setItem('workout_profile', JSON.stringify(updatedProfile));
-        if (setProfile) setProfile(updatedProfile);
-        alert(`Coach Mode ${newStatus ? 'Enabled!' : 'Disabled.'}`);
-      } else {
-        alert("Error updating status.");
-      }
-    }
-  };
-
   if (loading) return <div>Loading dashboard...</div>;
 
   return (
@@ -219,57 +168,6 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
           </div>
         </div>
       )}
-
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex flex-col">
-          <h1 style={{ borderBottom: 'none', textDecoration: 'none' }}>Your Training Log</h1>
-          <div className="flex flex-wrap gap-2 mt-2">
-            <button onClick={handleChangePin} className="btn-secondary" style={{padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto'}}>
-              <KeyRound size={14} className="inline mr-1" /> Change PIN
-            </button>
-            <div className="flex gap-2 items-center">
-              <label className="btn-secondary" style={{padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto', cursor:'pointer', display:'flex'}}>
-                <Palette size={14} className="inline mr-1" /> Theme
-                <input 
-                  type="color" 
-                  value={profile?.theme_color || '#39ff14'} 
-                  onChange={handleThemeColorChange} 
-                  style={{opacity: 0, position: 'absolute', width: '1px', height: '1px'}} 
-                />
-              </label>
-              {showColorSave && (
-                <button onClick={handleSaveTheme} className="btn-primary" style={{padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto', minHeight: 'auto'}}>
-                  Save Color
-                </button>
-              )}
-            </div>
-            {!isTrainerMode && (
-              <button 
-                onClick={handleToggleTrainer} 
-                className={profile?.is_trainer ? "btn-secondary" : "btn-primary"} 
-                style={
-                  profile?.is_trainer 
-                  ? { padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto', borderColor: 'tomato', color: 'tomato' }
-                  : { padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto' }
-                }
-              >
-                <UserCog size={14} className="inline mr-1" /> {profile?.is_trainer ? "Disable Coach Mode" : "Enable Coach Mode"}
-              </button>
-            )}
-          </div>
-        </div>
-        
-        <div className="flex gap-2">
-          {clipboard?.type === 'week' && (
-             <button className="btn-secondary" style={{color: 'var(--neon-blue)', borderColor: 'var(--neon-blue)'}} onClick={handlePasteWeek}>
-               <ClipboardPaste size={18} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Paste Week
-             </button>
-          )}
-          <button className="btn-primary" style={{ width: 'auto' }} onClick={createWeek}>
-            <Plus size={18} style={{ verticalAlign: 'middle' }} /> New Week
-          </button>
-        </div>
-      </div>
 
       {!isTrainerMode && (
          <div className="glass-panel mb-6" style={{padding: '1rem', background: 'rgba(0,0,0,0.4)', borderColor: 'var(--border-subtle)'}}>
@@ -295,6 +193,28 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
          </div>
       )}
 
+      <div className="flex flex-col gap-4 mb-6 mt-6">
+        <div>
+          <h1 style={{ borderBottom: 'none', textDecoration: 'none', margin: 0 }}>Your Training Log</h1>
+        </div>
+        
+        <div className="flex gap-2 text-sm justify-start">
+          {clipboard?.type === 'week' && (
+             <div className="flex gap-1 items-center">
+               <button className="btn-secondary" style={{color: 'var(--neon-blue)', borderColor: 'var(--neon-blue)', padding: '0.4rem'}} onClick={handlePasteWeek}>
+                 <ClipboardPaste size={18} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Paste Week
+               </button>
+               <button className="btn-secondary" style={{padding: '0.4rem', border: '1px solid tomato', color: 'tomato'}} onClick={() => setClipboard(null)}>
+                 <X size={18} />
+               </button>
+             </div>
+          )}
+          <button className="btn-primary" style={{ width: 'auto', padding: '0.4rem 0.8rem' }} onClick={createWeek}>
+            <Plus size={18} style={{ verticalAlign: 'middle', display: 'inline' }} /> New Week
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-4">
         {weeks.length === 0 ? (
           <div className="glass-panel text-center">No weeks found. Create one to begin.</div>
@@ -316,29 +236,34 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
               
               <div className="flex flex-col gap-2">
                 {week.workouts && week.workouts.sort((a,b)=> new Date(a.date) - new Date(b.date)).map(w => (
-                  <div key={w.id} className="relative flex justify-between items-center p-3 rounded cursor-pointer hover:bg-white/5 transition-colors" style={{ background: '#000', border: '1px solid var(--border-subtle)' }} onClick={() => navigate(`/workout/${w.id}`)}>
-                    <div className="flex items-center gap-2 pointer-events-none">
-                      {w.completed ? (
-                        <>
-                          <Calendar size={16} className="text-neon" />
-                          <span className="text-neon">{w.date}</span>
-                        </>
-                      ) : (
-                        <span className="text-secondary italic mr-2" style={{fontSize: '0.9rem'}}>Planned Workout</span>
-                      )}
-                      <span className="text-secondary text-sm hidden sm:inline">State: {w.state_rating}/5</span>
+                  <div key={w.id} className="relative flex justify-between items-center cursor-pointer hover:bg-white/5 transition-colors" style={{ paddingLeft: '1.5rem', paddingRight: '0.5rem', paddingTop: '0.4rem', paddingBottom: '0.4rem', background: '#000', border: '1px solid var(--border-subtle)', borderRadius: '12px' }} onClick={() => navigate(`/workout/${w.id}`)}>
+                    <div className="flex flex-1 items-center gap-6 pointer-events-none">
+                      <div className="flex items-center gap-2" style={{minWidth: '120px'}}>
+                        {w.completed ? (
+                          <>
+                            <Calendar size={16} className="text-neon" />
+                            <span className="text-neon whitespace-nowrap">{w.date}</span>
+                          </>
+                        ) : (
+                          <span className="text-secondary italic whitespace-nowrap" style={{fontSize: '0.9rem'}}>Planned Workout</span>
+                        )}
+                      </div>
+                      <span className="text-secondary text-sm">State: {w.state_rating}/5</span>
                     </div>
                     
-                    <div className="flex items-center" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center" style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                       <button className="btn-secondary flex items-center justify-center p-2" onClick={() => setMenuOpenFor(menuOpenFor === w.id ? null : w.id)} style={{border:'none'}}>
                         <MoreVertical size={18} className="text-secondary" />
                       </button>
                       
                       {menuOpenFor === w.id && (
-                        <div className="absolute right-12 top-2 glass-panel p-2 flex flex-col gap-2 z-10" style={{background: '#1a1a1a', minWidth: '120px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)'}}>
-                          <button className="btn-secondary text-sm flex items-center justify-start gap-2" onClick={() => { handleCopyWorkout(w); setMenuOpenFor(null); }} style={{padding: '0.4rem 0.8rem', border:'none'}}><Copy size={14}/> Copy</button>
-                          <button className="btn-secondary text-sm flex items-center justify-start gap-2" onClick={() => { deleteWorkout(w.id); setMenuOpenFor(null); }} style={{color: 'tomato', padding: '0.4rem 0.8rem', border:'none'}}><Trash2 size={14}/> Delete</button>
-                        </div>
+                        <>
+                          <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={(e) => { e.stopPropagation(); setMenuOpenFor(null); }} />
+                          <div className="p-2 flex flex-col gap-2" style={{position: 'absolute', right: '36px', top: 0, background: '#0a0a0a', border: '1px solid var(--theme-color)', borderRadius: '8px', minWidth: '120px', boxShadow: '0 8px 24px rgba(0,0,0,0.8)', zIndex: 50}}>
+                            <button className="text-sm flex items-center justify-start gap-2" onClick={() => { handleCopyWorkout(w); setMenuOpenFor(null); }} style={{color: 'var(--text-primary)', padding: '0.4rem 0.8rem', background: 'transparent', border: 'none'}}><Copy size={14}/> Copy</button>
+                            <button className="text-sm flex items-center justify-start gap-2" onClick={() => { deleteWorkout(w.id); setMenuOpenFor(null); }} style={{color: 'tomato', padding: '0.4rem 0.8rem', background: 'transparent', border: 'none'}}><Trash2 size={14}/> Delete</button>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
@@ -349,9 +274,14 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
                     + Add Workout
                   </button>
                   {clipboard?.type === 'workout' && (
-                    <button className="btn-secondary w-full text-sm text-neon-blue border-dashed" onClick={() => handlePasteWorkout(week.id)} style={{borderColor: 'var(--neon-blue)'}}>
-                      <ClipboardPaste size={14} style={{display:'inline', marginRight: '4px'}}/> Paste {clipboard.name}
-                    </button>
+                    <div className="flex gap-2 w-full">
+                      <button className="btn-secondary w-full text-sm text-neon-blue border-dashed" onClick={() => handlePasteWorkout(week.id)} style={{borderColor: 'var(--neon-blue)'}}>
+                        <ClipboardPaste size={14} style={{display:'inline', marginRight: '4px'}}/> Paste {clipboard.name}
+                      </button>
+                      <button className="btn-secondary" style={{padding: '0.4rem', border: '1px solid tomato', color: 'tomato'}} onClick={() => setClipboard(null)}>
+                        <X size={18} />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
