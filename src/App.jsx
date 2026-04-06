@@ -24,10 +24,15 @@ function App() {
       setProfile(parsed);
       // Apply theme custom color or fallback to neon green
       document.documentElement.style.setProperty('--theme-color', parsed.theme_color || '#39ff14');
+      if (location.pathname === '/') {
+        navigate('/dashboard');
+      }
     } else {
-      navigate('/');
+      if (location.pathname !== '/') {
+        navigate('/');
+      }
     }
-  }, [navigate]);
+  }, [navigate, location.pathname]);
 
   // Fetch pending requests count for trainers
   useEffect(() => {
@@ -49,8 +54,9 @@ function App() {
   };
 
   return (
-    <div className="container">
-      {profile && (
+    <>
+      <div className="container">
+      {profile && location.pathname !== '/' && (
         <header className="flex justify-between items-center mb-4 glass-panel desktop-nav">
           <h2 className="text-neon m-0">WorkoutTracker</h2>
           <div className="flex gap-4 items-center">
@@ -91,9 +97,11 @@ function App() {
         <Route path="/client/:id" element={<ClientDashboard trainerProfile={profile} />} />
       </Routes>
 
+      </div>
+
       {/* Persistent Bottom Nav Mobile only */}
-      {profile && (
-        <nav className="bottom-nav">
+      {profile && location.pathname !== '/' && (
+        <nav className="bottom-nav" style={{position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999}}>
           <Link to="/dashboard" className={location.pathname === '/dashboard' ? 'active' : ''}>
             <Home size={24} />
             <span>Log</span>
@@ -130,7 +138,7 @@ function App() {
           </button>
         </nav>
       )}
-    </div>
+    </>
   );
 }
 

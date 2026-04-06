@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Plus, Trash2, Copy, ClipboardPaste, KeyRound, Edit3, UserCog, Palette } from 'lucide-react';
+import { Calendar, Plus, Trash2, Copy, ClipboardPaste, KeyRound, Edit3, UserCog, Palette, MoreVertical } from 'lucide-react';
 import { cloneWorkout, cloneWeek } from '../lib/clone';
 import SearchableDropdown from '../components/SearchableDropdown';
 
@@ -16,6 +16,8 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
   
   // Custom modals
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [menuOpenFor, setMenuOpenFor] = useState(null); // Track which workout has the 3-dots menu active
+  const [showColorSave, setShowColorSave] = useState(false);
   
   // Clipboard state holds: { type: 'week' | 'workout', id: string, name?: string }
   const [clipboard, setClipboard] = useState(null);
@@ -163,12 +165,19 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
   const handleThemeColorChange = async (e) => {
     const newColor = e.target.value;
     if(!profile) return;
-    const { error } = await supabase.from('profiles').update({ theme_color: newColor }).eq('id', profile.id);
+    const updatedProfile = { ...profile, theme_color: newColor };
+    if (setProfile) setProfile(updatedProfile);
+    document.documentElement.style.setProperty('--theme-color', newColor);
+    setShowColorSave(true);
+  };
+
+  const handleSaveTheme = async () => {
+    if(!profile) return;
+    const { error } = await supabase.from('profiles').update({ theme_color: profile.theme_color }).eq('id', profile.id);
     if (!error) {
-      const updatedProfile = { ...profile, theme_color: newColor };
-      localStorage.setItem('workout_profile', JSON.stringify(updatedProfile));
-      if (setProfile) setProfile(updatedProfile);
-      document.documentElement.style.setProperty('--theme-color', newColor);
+      localStorage.setItem('workout_profile', JSON.stringify(profile));
+      setShowColorSave(false);
+      setTimeout(() => alert("Theme saved successfully!"), 100);
     }
   };
 
@@ -214,19 +223,26 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
       <div className="flex justify-between items-center mb-6">
         <div className="flex flex-col">
           <h1 style={{ borderBottom: 'none', textDecoration: 'none' }}>Your Training Log</h1>
-          <div className="flex gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2">
             <button onClick={handleChangePin} className="btn-secondary" style={{padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto'}}>
               <KeyRound size={14} className="inline mr-1" /> Change PIN
             </button>
-            <label className="btn-secondary" style={{padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto', cursor:'pointer', display:'flex'}}>
-              <Palette size={14} className="inline mr-1" /> Theme
-              <input 
-                type="color" 
-                value={profile?.theme_color || '#39ff14'} 
-                onChange={handleThemeColorChange} 
-                style={{opacity: 0, position: 'absolute', width: '1px', height: '1px'}} 
-              />
-            </label>
+            <div className="flex gap-2 items-center">
+              <label className="btn-secondary" style={{padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto', cursor:'pointer', display:'flex'}}>
+                <Palette size={14} className="inline mr-1" /> Theme
+                <input 
+                  type="color" 
+                  value={profile?.theme_color || '#39ff14'} 
+                  onChange={handleThemeColorChange} 
+                  style={{opacity: 0, position: 'absolute', width: '1px', height: '1px'}} 
+                />
+              </label>
+              {showColorSave && (
+                <button onClick={handleSaveTheme} className="btn-primary" style={{padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto', minHeight: 'auto'}}>
+                  Save Color
+                </button>
+              )}
+            </div>
             {!isTrainerMode && (
               <button 
                 onClick={handleToggleTrainer} 
@@ -300,8 +316,8 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
               
               <div className="flex flex-col gap-2">
                 {week.workouts && week.workouts.sort((a,b)=> new Date(a.date) - new Date(b.date)).map(w => (
-                  <div key={w.id} className="flex justify-between items-center p-3 rounded" style={{ background: '#000', border: '1px solid var(--border-subtle)' }}>
-                    <div className="flex items-center gap-2">
+                  <div key={w.id} className="relative flex justify-between items-center p-3 rounded cursor-pointer hover:bg-white/5 transition-colors" style={{ background: '#000', border: '1px solid var(--border-subtle)' }} onClick={() => navigate(`/workout/${w.id}`)}>
+                    <div className="flex items-center gap-2 pointer-events-none">
                       {w.completed ? (
                         <>
                           <Calendar size={16} className="text-neon" />
@@ -312,10 +328,18 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
                       )}
                       <span className="text-secondary text-sm hidden sm:inline">State: {w.state_rating}/5</span>
                     </div>
-                    <div className="flex gap-2">
-                       <button className="btn-secondary flex items-center justify-center p-2" onClick={() => handleCopyWorkout(w)} title="Copy Workout"><Copy size={14}/></button>
-                       <button className="btn-secondary flex items-center justify-center p-2" onClick={() => deleteWorkout(w.id)} style={{color: 'tomato', borderColor: 'transparent'}} title="Delete Workout"><Trash2 size={14}/></button>
-                       <button className="btn-secondary" onClick={() => navigate(`/workout/${w.id}`)}>Open</button>
+                    
+                    <div className="flex items-center" onClick={e => e.stopPropagation()}>
+                      <button className="btn-secondary flex items-center justify-center p-2" onClick={() => setMenuOpenFor(menuOpenFor === w.id ? null : w.id)} style={{border:'none'}}>
+                        <MoreVertical size={18} className="text-secondary" />
+                      </button>
+                      
+                      {menuOpenFor === w.id && (
+                        <div className="absolute right-12 top-2 glass-panel p-2 flex flex-col gap-2 z-10" style={{background: '#1a1a1a', minWidth: '120px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)'}}>
+                          <button className="btn-secondary text-sm flex items-center justify-start gap-2" onClick={() => { handleCopyWorkout(w); setMenuOpenFor(null); }} style={{padding: '0.4rem 0.8rem', border:'none'}}><Copy size={14}/> Copy</button>
+                          <button className="btn-secondary text-sm flex items-center justify-start gap-2" onClick={() => { deleteWorkout(w.id); setMenuOpenFor(null); }} style={{color: 'tomato', padding: '0.4rem 0.8rem', border:'none'}}><Trash2 size={14}/> Delete</button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
