@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Plus, Trash2, Copy, ClipboardPaste, KeyRound, Edit3, UserCog } from 'lucide-react';
+import { Calendar, Plus, Trash2, Copy, ClipboardPaste, KeyRound, Edit3, UserCog, Palette } from 'lucide-react';
 import { cloneWorkout, cloneWeek } from '../lib/clone';
 import SearchableDropdown from '../components/SearchableDropdown';
 
@@ -160,6 +160,18 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
     }
   };
 
+  const handleThemeColorChange = async (e) => {
+    const newColor = e.target.value;
+    if(!profile) return;
+    const { error } = await supabase.from('profiles').update({ theme_color: newColor }).eq('id', profile.id);
+    if (!error) {
+      const updatedProfile = { ...profile, theme_color: newColor };
+      localStorage.setItem('workout_profile', JSON.stringify(updatedProfile));
+      if (setProfile) setProfile(updatedProfile);
+      document.documentElement.style.setProperty('--theme-color', newColor);
+    }
+  };
+
   const handleToggleTrainer = async () => {
     if(!profile) return;
     const newStatus = !profile.is_trainer;
@@ -206,6 +218,15 @@ export default function Dashboard({ profile, isTrainerMode = false, setProfile }
             <button onClick={handleChangePin} className="btn-secondary" style={{padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto'}}>
               <KeyRound size={14} className="inline mr-1" /> Change PIN
             </button>
+            <label className="btn-secondary" style={{padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto', cursor:'pointer', display:'flex'}}>
+              <Palette size={14} className="inline mr-1" /> Theme
+              <input 
+                type="color" 
+                value={profile?.theme_color || '#39ff14'} 
+                onChange={handleThemeColorChange} 
+                style={{opacity: 0, position: 'absolute', width: '1px', height: '1px'}} 
+              />
+            </label>
             {!isTrainerMode && (
               <button 
                 onClick={handleToggleTrainer} 

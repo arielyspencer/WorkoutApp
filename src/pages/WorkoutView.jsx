@@ -297,23 +297,34 @@ export default function WorkoutView() {
         </div>
         
         <div className="flex flex-col gap-4">
-          <label className="text-sm text-secondary flex items-center gap-2">
-            <input type="checkbox" checked={!!workout.completed} onChange={e => updateWorkoutField('completed', e.target.checked)} style={{width: 'auto'}} />
+          <label className="text-sm text-secondary flex items-center gap-2" style={{cursor: isOwner ? 'pointer' : 'not-allowed'}}>
+            <input type="checkbox" disabled={!isOwner} checked={!!workout.completed} onChange={e => updateWorkoutField('completed', e.target.checked)} style={{width: 'auto'}} />
             Workout Completed
           </label>
           
           {workout.completed && (
             <label className="text-sm text-secondary">Date
-              <input type="date" className="mt-1" value={workout.date} onChange={e => updateWorkoutField('date', e.target.value)} />
+              <input type="date" disabled={!isOwner} className="mt-1" value={workout.date} onChange={e => updateWorkoutField('date', e.target.value)} />
             </label>
           )}
-          <label className="text-sm text-secondary">State Rating (1-5)
-            <select className="mt-1" value={workout.state_rating} onChange={e => updateWorkoutField('state_rating', parseInt(e.target.value))}>
-              {[5,4,3,2,1].map(v => <option key={v} value={v}>{v} - {v===5?'Excellent':'Poor'}</option>)}
-            </select>
-          </label>
+          <div className="flex flex-col gap-2" style={{opacity: isOwner ? 1 : 0.5, pointerEvents: isOwner ? 'auto' : 'none'}}>
+            <span className="text-sm text-secondary">State Rating (1-Terrible to 5-Excellent)</span>
+            <div className="flex justify-between gap-2">
+              {[1,2,3,4,5].map(v => (
+                <button 
+                  key={v}
+                  type="button"
+                  disabled={!isOwner}
+                  className={`rpe-btn ${workout.state_rating === v ? 'active' : ''}`}
+                  onClick={() => updateWorkoutField('state_rating', v)}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
           <label className="text-sm text-secondary">Trainee Comments
-            <textarea className="mt-1" rows="2" value={workout.trainee_comments || ''} onChange={e => updateWorkoutField('trainee_comments', e.target.value)} />
+            <textarea disabled={!isOwner} className="mt-1" rows="2" value={workout.trainee_comments || ''} onChange={e => updateWorkoutField('trainee_comments', e.target.value)} />
           </label>
         </div>
       </div>
@@ -371,9 +382,10 @@ export default function WorkoutView() {
                 
                 <input 
                   type="checkbox" 
+                  disabled={!isOwner}
                   checked={!!set.completed} 
                   onChange={e => updateSetField(exIndex, setIndex, 'completed', e.target.checked)}
-                  style={{width: '20px', height: '20px', cursor: 'pointer', margin: '0 auto'}}
+                  style={{width: '20px', height: '20px', cursor: isOwner ? 'pointer' : 'not-allowed', margin: '0 auto'}}
                 />
 
                 <div className="p-2 text-center bg-black rounded" style={{color: 'var(--neon-green)', fontWeight:'bold'}}>
