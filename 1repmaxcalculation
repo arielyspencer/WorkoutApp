@@ -1,0 +1,102 @@
+/**
+ * Calculates 1RM based on a selected row of workout data.
+ *
+ * @param {Array[]} inputData The range of cells (e.g. D4:G4). Order: [Sets, Reps, Weight, RPE_String]
+ * @param {Array[]} tableData The RPE Table Data (e.g. 'RPETable'!$B$3:$AF$23)
+ * @param {Array[]} headerData The Reps Header Row (e.g. 'RPETable'!$B$2:$AF$2)
+ * @return {Array} A horizontal list of calculated 1RMs.
+ * @customfunction
+ */
+function CALC_1RM(inputData, tableData, headerData) {
+
+  // 1. Validate Input
+  // inputData comes in as a 2D array: [[Sets, Reps, Weight, RPE_String]]
+  if (!inputData || inputData.length === 0 || !inputData[0]) return "";
+
+  var row = inputData[0]; // Get the first (and only) row
+  var defaultReps = row[1]; // Index 1 is the 2nd cell (Reps)
+  var rpeString = row[3];   // Index 3 is the 4th cell (RPE String)
+
+  // Safety check: If RPE string is empty, do nothing
+  if (!rpeString || rpeString.toString() === "") return "";
+
+  var results = [];
+  var sets = rpeString.toString().split(",");
+
+  // 2. Loop through each set found in the string
+  for (var i = 0; i < sets.length; i++) {
+    var setStr = sets[i].trim();
+    var weight = null;
+    var reps = null;
+    var rpe = null;
+    var isValid = false;
+
+    // --- PARSING LOGIC ---
+
+    // PATTERN A: Explicit Reps ("100#5@8")
+    if (setStr.includes("#")) {
+      var parts = setStr.match(/([\d\.]+)#([\d\.]+)@([\d\.]+)/);
+      if (parts) {
+        weight = parseFloat(parts[1]);
+        reps = parseFloat(parts[2]);
+        rpe = parseFloat(parts[3]);
+        isValid = true;
+      }
+    }
+    // PATTERN B: Implicit Reps ("100@8")
+    else if (setStr.includes("@")) {
+      var parts = setStr.match(/([\d\.]+)@([\d\.]+)/);
+      // Ensure the "Reps" cell (defaultReps) is a valid number
+      var isDefaultRepValid = (typeof defaultReps === 'number' && !isNaN(defaultReps));
+
+      if (parts && isDefaultRepValid) {
+        weight = parseFloat(parts[1]);
+        reps = defaultReps;
+        rpe = parseFloat(parts[2]);
+        isValid = true;
+      }
+    }
+
+    // --- CALCULATION LOGIC ---
+    if (isValid) {
+      // Find RPE Row (in the first column of tableData)
+      var rpeRowIndex = -1;
+      for (var r = 0; r < tableData.length; r++) {
+        if (tableData[r][0] == rpe) {
+          rpeRowIndex = r;
+          break;
+        }
+      }
+
+      // Find Reps Column (in the headerData row)
+      var repsColIndex = -1;
+      var headerRow = headerData[0];
+      for (var c = 0; c < headerRow.length; c++) {
+        if (headerRow[c] == reps) {
+          repsColIndex = c;
+          break;
+        }
+      }
+
+      // Perform Lookup
+      if (rpeRowIndex !== -1 && repsColIndex !== -1) {
+        var percentage = tableData[rpeRowIndex][repsColIndex];
+
+        if (percentage > 0) {
+          var oneRepMax = weight / percentage;
+          results.push(Number(oneRepMax.toFixed(2)));
+        } else {
+          results.push("Error"); // Avoid division by zero
+        }
+      } else {
+        results.push("N/A"); // RPE or Reps not found in table
+      }
+
+    } else {
+      results.push("Invalid RPE"); // Parsing failed or bad text in Reps column
+    }
+  }
+
+  // Return results horizontally
+  return [results];
+}
