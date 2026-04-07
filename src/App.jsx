@@ -54,6 +54,8 @@ function App() {
     navigate('/');
   };
 
+  const firstName = profile?.username ? profile.username.split(' ')[0] : 'Profile';
+
   return (
     <>
       <div className="container">
@@ -137,7 +139,7 @@ function App() {
           )}
           <Link to="/profile" className={location.pathname === '/profile' ? 'active' : ''}>
             <User size={24} />
-            <span>Profile</span>
+            <span>{firstName}</span>
           </Link>
         </nav>
       )}

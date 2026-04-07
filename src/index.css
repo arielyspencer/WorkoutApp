@@ -129,21 +129,212 @@ input:focus, select:focus, textarea:focus {
 .mt-4 { margin-top: 1rem; }
 .mb-4 { margin-bottom: 1rem; }
 
-/* Set row grid for precise inputs */
-.set-row {
-  display: grid;
-  grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto minmax(0,1fr) auto auto;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.5rem;
+/* ─── Set Card Layout ─────────────────────────────────────── */
+
+.set-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
 }
 
-@media (max-width: 600px) {
-  .set-row {
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
+.set-card {
+  background: rgba(10, 10, 10, 0.85);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.2s;
 }
+
+.set-card:hover {
+  border-color: rgba(0, 243, 255, 0.25);
+}
+
+/* Card header: "Set N" label */
+.set-card-header {
+  display: flex;
+  align-items: center;
+  padding: 0.45rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.set-card-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--neon-blue);
+}
+
+/* Row 1: Weight | Reps | RPE */
+.set-card-row1 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Row 2: Est. 1RM | Done */
+.set-card-row2 {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Field wrapper */
+.set-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0.5rem 0.6rem;
+  border-right: 1px solid var(--border-subtle);
+  gap: 0.3rem;
+}
+
+.set-field:last-child {
+  border-right: none;
+}
+
+.set-field-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Shared numeric/dropdown input inside cards */
+.set-input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  min-height: unset;
+  padding: 0 0.25rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: #000;
+  color: var(--text-primary);
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.set-input:focus {
+  outline: none;
+  border-color: var(--neon-blue);
+  box-shadow: 0 0 8px rgba(0, 243, 255, 0.2);
+}
+
+/* RPE select */
+.rpe-select {
+  height: 36px;
+  min-height: unset;
+  text-align: center;
+  padding: 0 0.15rem;
+}
+
+/* Est. 1RM display */
+.set-1rm-display {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--neon-green);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+/* Done button field */
+.set-field-check {
+  align-items: center;
+  min-width: 70px;
+  justify-content: center;
+}
+
+.set-check-btn {
+  width: 40px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  min-height: unset;
+  padding: 0;
+}
+
+.set-check-btn:hover {
+  background: rgba(57, 255, 20, 0.1);
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+}
+
+.set-check-btn--active {
+  background: var(--neon-green);
+  border-color: var(--neon-green);
+  color: #000;
+  box-shadow: 0 0 14px rgba(57, 255, 20, 0.7), 0 0 4px rgba(57, 255, 20, 0.9) inset;
+}
+
+/* Card footer */
+.set-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 0.4rem 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.set-footer-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  min-height: unset;
+  padding: 0;
+}
+
+.set-footer-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+}
+
+.set-footer-btn--delete {
+  color: #ff4444;
+  border-color: rgba(255, 68, 68, 0.3);
+}
+
+.set-footer-btn--delete:hover {
+  background: rgba(255, 68, 68, 0.12);
+  border-color: #ff4444;
+  color: #ff4444;
+}
+
+/* Remove number spinners inside cards */
+.set-input[type=number]::-webkit-inner-spin-button,
+.set-input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.set-input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .text-neon {
   color: var(--theme-color);

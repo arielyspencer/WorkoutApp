@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { calculateOneRepMax } from '../lib/1rm';
-import { Save, Plus, ArrowLeft, Copy, Check } from 'lucide-react';
+import { Save, Plus, ArrowLeft, Copy, Check, X, Eye, EyeOff } from 'lucide-react';
 import SearchableDropdown from '../components/SearchableDropdown';
 
 export default function WorkoutView() {
@@ -20,8 +20,15 @@ export default function WorkoutView() {
   const saveActionRef = useRef(null);
   const hasUnsavedRef = useRef(false);
 
-  // We'll manage batch form open state with a simple object dictionary tracking by exIndex
   const [batchForms, setBatchForms] = useState({});
+  // Coach notes collapsed/expanded state per exercise
+  const [notesOpen, setNotesOpen] = useState({});
+  // Custom delete modal state: null | { type: 'set', exIndex, setIndex, setId }
+  const [pendingDelete, setPendingDelete] = useState(null);
+
+  // Read the logged-in profile to determine coach vs athlete
+  const sessionProfile = JSON.parse(localStorage.getItem('workout_profile') || 'null');
+  const isCoach = sessionProfile?.is_trainer || sessionProfile?.username?.toLowerCase() === 'admin';
 
   useEffect(() => {
     fetchGlobalConfig();
@@ -183,19 +190,41 @@ export default function WorkoutView() {
     }
   };
 
-  const removeSet = async (exIndex, setIndex, setId) => {
+  const removeSet = (exIndex, setIndex, setId) => {
+    // Open the custom delete modal instead of window.confirm
+    setPendingDelete({ exIndex, setIndex, setId });
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    const { exIndex, setIndex, setId } = pendingDelete;
     hasUnsavedRef.current = true;
     const exList = [...exercises];
     exList[exIndex].sets.splice(setIndex, 1);
     setExercises(exList);
     await supabase.from('sets').delete().eq('id', setId);
+    setPendingDelete(null);
+  };
+
+  const updateCoachNote = async (exIndex, note) => {
+    hasUnsavedRef.current = true;
+    const exList = [...exercises];
+    exList[exIndex] = { ...exList[exIndex], coach_notes: note };
+    setExercises(exList);
+    // Persist immediately to workout_exercises table
+    await supabase.from('workout_exercises')
+      .update({ coach_notes: note })
+      .eq('id', exList[exIndex].id);
   };
 
   const updateSetField = async (exIndex, setIndex, field, value) => {
     hasUnsavedRef.current = true;
     const exList = [...exercises];
-    const setObj = exList[exIndex].sets[setIndex];
+    // Shallow-clone the set so React always sees a new reference → instant re-render
+    const setObj = { ...exList[exIndex].sets[setIndex] };
     setObj[field] = value;
+    exList[exIndex] = { ...exList[exIndex], sets: [...exList[exIndex].sets] };
+    exList[exIndex].sets[setIndex] = setObj;
     
     let rm = setObj.calculated_1rm;
     if (field === 'completed') {
@@ -204,23 +233,22 @@ export default function WorkoutView() {
         const weightNum = parseFloat(setObj.weight) || 0;
         const rpeStr = setObj.rpe || "0";
         rm = calculateOneRepMax(weightNum, repNum, rpeStr);
-        setObj.calculated_1rm = rm;
+        exList[exIndex].sets[setIndex].calculated_1rm = rm;
       } else {
         rm = null;
-        setObj.calculated_1rm = null;
+        exList[exIndex].sets[setIndex].calculated_1rm = null;
       }
     } else if (setObj.completed) {
-      // live update if checked
       const repNum = parseInt(setObj.reps) || 0;
       const weightNum = parseFloat(setObj.weight) || 0;
       const rpeStr = setObj.rpe || "0";
       rm = calculateOneRepMax(weightNum, repNum, rpeStr);
-      setObj.calculated_1rm = rm;
+      exList[exIndex].sets[setIndex].calculated_1rm = rm;
     }
 
     setExercises(exList);
 
-    // Silent debounce update to Supabase.
+    // Silent update to Supabase.
     await supabase.from('sets').update({ 
       [field]: value, 
       calculated_1rm: rm 
@@ -289,7 +317,7 @@ export default function WorkoutView() {
   if(!workout) return <div>Workout not found.</div>;
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
       <button onClick={handleBack} className="btn-secondary flex items-center gap-2 mb-4">
         <ArrowLeft size={16} /> Back
       </button>
@@ -335,8 +363,9 @@ export default function WorkoutView() {
         </div>
       </div>
 
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <h3 className="mb-4">Exercises</h3>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6" style={{ flex: 1 }}>
         {exercises.map((ex, exIndex) => (
           <div key={ex.id} className="glass-panel p-4" style={{borderColor: 'var(--neon-blue)'}}>
             <select 
@@ -353,71 +382,148 @@ export default function WorkoutView() {
               ))}
             </select>
 
-            <div className="hidden sm:grid set-row text-xs text-secondary px-2 mb-1">
-              <span>Weight</span>
-              <span>Reps</span>
-              <span>RPE</span>
-              <span title="Completed" style={{textAlign:'center'}}><Check size={14}/></span>
-              <span>Est. 1RM</span>
-              <span></span>
-              <span></span>
+            {/* Coach's Note */}
+            <div className="coach-note-section">
+              <button
+                type="button"
+                className="coach-note-toggle"
+                onClick={() => setNotesOpen(prev => ({ ...prev, [exIndex]: !prev[exIndex] }))}
+              >
+                {notesOpen[exIndex] ? <EyeOff size={13} /> : <Eye size={13} />}
+                <span>Coach's Note</span>
+                {ex.coach_notes && !notesOpen[exIndex] && (
+                  <span className="coach-note-dot" />
+                )}
+              </button>
+              {notesOpen[exIndex] && (
+                isCoach ? (
+                  <textarea
+                    className="coach-note-textarea"
+                    rows={3}
+                    placeholder="Add a coaching note for this exercise…"
+                    value={ex.coach_notes || ''}
+                    onChange={e => updateCoachNote(exIndex, e.target.value)}
+                  />
+                ) : (
+                  ex.coach_notes ? (
+                    <div className="coach-note-readonly">{ex.coach_notes}</div>
+                  ) : (
+                    <div className="coach-note-readonly" style={{opacity: 0.4, fontStyle: 'italic'}}>No coach note for this exercise.</div>
+                  )
+                )
+              )}
             </div>
 
-            {ex.sets.map((set, setIndex) => (
-              <div key={set.id} className="set-row">
-                <input 
-                  type="number" step="0.5" placeholder="Weight" value={set.weight}
-                  onChange={e => updateSetField(exIndex, setIndex, 'weight', e.target.value)}
-                />
-                <input 
-                  type="number" placeholder="Reps" value={set.reps}
-                  onChange={e => updateSetField(exIndex, setIndex, 'reps', e.target.value)}
-                />
-                <select 
-                  value={set.rpe || "8"}
-                  onChange={e => updateSetField(exIndex, setIndex, 'rpe', e.target.value)}
-                >
-                  <option value="10">10</option>
-                  <option value="9.5">9.5</option>
-                  <option value="9">9</option>
-                  <option value="8.5">8.5</option>
-                  <option value="8">8</option>
-                  <option value="7.5">7.5</option>
-                  <option value="7">7</option>
-                  <option value="6.5">6.5</option>
-                  <option value="6">6</option>
-                </select>
-                
-                <input 
-                  type="checkbox" 
-                  disabled={!isOwner}
-                  checked={!!set.completed} 
-                  onChange={e => updateSetField(exIndex, setIndex, 'completed', e.target.checked)}
-                  style={{width: '20px', height: '20px', cursor: isOwner ? 'pointer' : 'not-allowed', margin: '0 auto'}}
-                />
+            {/* Set Cards */}
+            <div className="set-cards-container">
+              {ex.sets.map((set, setIndex) => (
+                <div key={set.id} className="set-card">
 
-                <div className="p-2 text-center bg-black rounded" style={{color: 'var(--neon-green)', fontWeight:'bold'}}>
-                  {set.completed && set.calculated_1rm ? set.calculated_1rm : "-"}
+                  {/* Card Header */}
+                  <div className="set-card-header">
+                    <span className="set-card-label">Set {setIndex + 1}</span>
+                  </div>
+
+                  {/* Row 1: Weight | Reps | RPE */}
+                  <div className="set-card-row1">
+                    <div className="set-field">
+                      <span className="set-field-label">Weight</span>
+                      <input
+                        type="number" step="0.5"
+                        className="set-input"
+                        value={set.weight}
+                        placeholder="0"
+                        onFocus={e => { if (parseFloat(e.target.value) === 0) e.target.value = ''; }}
+                        onBlur={e => { if (e.target.value === '') updateSetField(exIndex, setIndex, 'weight', 0); }}
+                        onChange={e => updateSetField(exIndex, setIndex, 'weight', e.target.value)}
+                      />
+                    </div>
+                    <div className="set-field">
+                      <span className="set-field-label">Reps</span>
+                      <input
+                        type="number"
+                        className="set-input"
+                        value={set.reps}
+                        placeholder="0"
+                        onFocus={e => { if (parseInt(e.target.value) === 0) e.target.value = ''; }}
+                        onBlur={e => { if (e.target.value === '') updateSetField(exIndex, setIndex, 'reps', 0); }}
+                        onChange={e => updateSetField(exIndex, setIndex, 'reps', e.target.value)}
+                      />
+                    </div>
+                    <div className="set-field">
+                      <span className="set-field-label">RPE</span>
+                      <select
+                        className="set-input rpe-select"
+                        value={set.rpe || '8'}
+                        onChange={e => updateSetField(exIndex, setIndex, 'rpe', e.target.value)}
+                      >
+                        <option value="10">10</option>
+                        <option value="9.5">9.5</option>
+                        <option value="9">9</option>
+                        <option value="8.5">8.5</option>
+                        <option value="8">8</option>
+                        <option value="7.5">7.5</option>
+                        <option value="7">7</option>
+                        <option value="6.5">6.5</option>
+                        <option value="6">6</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Est. 1RM | Done */}
+                  <div className="set-card-row2">
+                    <div className="set-field">
+                      <span className="set-field-label">Est. 1RM</span>
+                      <div className="set-1rm-display">
+                        {set.completed && set.calculated_1rm ? set.calculated_1rm : '—'}
+                      </div>
+                    </div>
+                    <div className="set-field set-field-check">
+                      <span className="set-field-label">Done</span>
+                      <button
+                        type="button"
+                        disabled={!isOwner}
+                        className={`set-check-btn${set.completed ? ' set-check-btn--active' : ''}`}
+                        onClick={() => updateSetField(exIndex, setIndex, 'completed', !set.completed)}
+                        title={set.completed ? 'Mark incomplete' : 'Mark complete'}
+                      >
+                        <Check size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Footer: Delete + Copy */}
+                  <div className="set-card-footer">
+                    <button
+                      type="button"
+                      className="set-footer-btn set-footer-btn--delete"
+                      onClick={() => removeSet(exIndex, setIndex, set.id)}
+                      title="Delete Set"
+                    >
+                      <X size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      className="set-footer-btn"
+                      onClick={() => duplicateSet(exIndex, setIndex)}
+                      title="Duplicate Set"
+                    >
+                      <Copy size={15} />
+                    </button>
+                  </div>
+
                 </div>
-                
-                <button className="btn-secondary" style={{padding: '0.4rem'}} onClick={() => duplicateSet(exIndex, setIndex)} title="Duplicate Set">
-                  <Copy size={16} />
-                </button>
+              ))}
+            </div>
 
-                <button className="btn-secondary text-red-500" onClick={() => removeSet(exIndex, setIndex, set.id)} style={{color:'tomato', border: 'none', padding: '0.4rem'}} title="Delete Set">
-                  X
-                </button>
-              </div>
-            ))}
-            
             {batchForms[exIndex] && (
               <form onSubmit={(e) => executeBatchAdd(exIndex, e)} className="flex flex-col gap-2 mt-4 p-3 bg-black rounded" style={{border: '1px solid var(--border-subtle)'}}>
-                <h4 className="text-sm text-neon-blue mb-1">Batch Prescribe Sets</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                <h4 className="text-sm text-neon-blue mb-1">Prescribe Sets</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
                   <label>Sets <input required name="bSets" type="number" min="1" defaultValue="3" /></label>
                   <label>Target Wt <input required name="bWeight" type="number" step="0.5" defaultValue="0" /></label>
                   <label>Target Reps <input required name="bReps" type="number" min="1" defaultValue="8" /></label>
-                  <label>Target RPE 
+                  <label>Target RPE
                     <select required name="bRpe" defaultValue="8">
                       <option value="10">10</option>
                       <option value="9.5">9.5</option>
@@ -439,24 +545,21 @@ export default function WorkoutView() {
             )}
 
             <div className="flex gap-2 mt-4">
-              <button className="btn-secondary w-full text-sm" onClick={() => addSet(exIndex)}>
-                + Add Set
-              </button>
-              <button className="btn-secondary w-full text-sm flex items-center justify-center border-dashed border-2 py-1" style={{borderStyle:'dashed'}} onClick={() => toggleBatchForm(exIndex)}>
-                + Batch Prescribe
-              </button>
+              <button className="btn-secondary w-full text-sm" onClick={() => addSet(exIndex)}>+ Add Set</button>
+              <button className="btn-secondary w-full text-sm" style={{borderStyle:'dashed', borderWidth:'2px'}} onClick={() => toggleBatchForm(exIndex)}>+ Prescribe Set</button>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="flex justify-between items-center mt-6 mb-12">
+      <div className="flex justify-between items-center mt-6" style={{ paddingBottom: '5rem' }}>
         <button className="btn-primary" style={{width: 'auto'}} onClick={addExerciseBlock}>
           <Plus size={18} style={{display:'inline', verticalAlign:'middle'}} /> Add Exercise
         </button>
         <button className="btn-primary" style={{width: 'auto', background: 'var(--neon-blue)'}} onClick={saveWorkoutDetails}>
           <Save size={18} style={{display:'inline', verticalAlign:'middle'}} /> Save Details
         </button>
+      </div>
       </div>
 
       {showExitModal && (
@@ -468,6 +571,37 @@ export default function WorkoutView() {
               <button className="btn-primary" onClick={async () => { await saveWorkoutDetails(); setShowExitModal(false); navigate('/dashboard', {replace: true}); }}>Save & Exit</button>
               <button className="btn-secondary" style={{borderColor: 'tomato', color: 'tomato'}} onClick={() => { setShowExitModal(false); navigate('/dashboard', {replace: true}); }}>Exit Without Saving</button>
               <button className="btn-secondary" onClick={() => setShowExitModal(false)}>Cancel & Stay</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Custom Delete Confirmation Modal ── */}
+      {pendingDelete && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '340px', borderColor: 'rgba(255,68,68,0.4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+              <X size={20} style={{ color: '#ff4444', flexShrink: 0 }} />
+              <h3 style={{ color: '#ff4444', margin: 0 }}>Delete Set</h3>
+            </div>
+            <p className="text-secondary" style={{ fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+              Are you sure you want to delete this set? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                className="btn-secondary"
+                style={{ flex: 1 }}
+                onClick={() => setPendingDelete(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                style={{ flex: 1, background: '#ff4444' }}
+                onClick={confirmDelete}
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
