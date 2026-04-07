@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { UserCheck, UserX, UserMinus } from 'lucide-react';
 
-export default function Clients({ profile }) {
+export default function Clients({ profile, setViewingClient }) {
   const [pending, setPending] = useState([]);
   const [active, setActive] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +76,16 @@ export default function Clients({ profile }) {
               <div key={c.id} className="flex justify-between items-center bg-black border border-gray-800 p-3 rounded" style={{ borderColor: 'var(--border-subtle)' }}>
                 <span>{c.username}</span>
                 <div className="flex gap-2">
-                  <button onClick={() => navigate(`/client/${c.id}`)} className="btn-primary" style={{ padding: '0.4rem 0.8rem', width: 'auto' }}>
+                  <button
+                    onClick={() => {
+                      if (setViewingClient) {
+                        setViewingClient({ id: c.id, username: c.username, theme_color: c.theme_color });
+                      }
+                      navigate(`/client/${c.id}`);
+                    }}
+                    className="btn-primary"
+                    style={{ padding: '0.4rem 0.8rem', width: 'auto' }}
+                  >
                     View Log
                   </button>
                   <button onClick={() => { if(confirm(`Remove ${c.username} from your clients?`)) handleAction(c.id, 'none'); }} className="btn-secondary" style={{ color: 'tomato', padding: '0.4rem 0.8rem' }}>
